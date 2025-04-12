@@ -6,6 +6,7 @@ import java.util.stream.Stream;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import com.gerentes.agenda.model.Gerente;
@@ -19,9 +20,11 @@ import com.gerentes.agenda.repository.UsuarioRepository;
 public class SecurityUtils {
 
     private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public SecurityUtils(UsuarioRepository usuarioRepository) {
+    public SecurityUtils(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /**
@@ -101,5 +104,16 @@ public class SecurityUtils {
         return authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(authority -> Stream.of(roles).anyMatch(authority::equals));
+    }
+
+    /**
+     * Verifica si una contraseña coincide con la contraseña codificada almacenada.
+     *
+     * @param rawPassword La contraseña sin codificar proporcionada por el usuario
+     * @param encodedPassword La contraseña codificada almacenada en la base de datos
+     * @return true si las contraseñas coinciden, false en caso contrario
+     */
+    public boolean passwordMatches(String rawPassword, String encodedPassword) {
+        return passwordEncoder.matches(rawPassword, encodedPassword);
     }
 }

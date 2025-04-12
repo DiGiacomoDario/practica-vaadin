@@ -41,6 +41,7 @@ public class SecurityConfiguration extends VaadinWebSecurity {
         
         // Configura las rutas públicas y las que requieren autenticación
         http.authorizeHttpRequests(auth -> 
+            // PASO 1: Define los recursos públicos primero
             auth.requestMatchers(
                     // Recursos estáticos de Vaadin
                     new AntPathRequestMatcher("/VAADIN/**"),
@@ -52,11 +53,15 @@ public class SecurityConfiguration extends VaadinWebSecurity {
                     new AntPathRequestMatcher("/manifest.webmanifest"),
                     new AntPathRequestMatcher("/sw.js"),
                     new AntPathRequestMatcher("/offline.html")
-            ).permitAll()
-            // Rutas para administradores
-            .requestMatchers(new AntPathRequestMatcher("/gerentes/**")).hasRole("ADMIN")
-            // Todo lo demás requiere autenticación
-            .anyRequest().authenticated()
+                ).permitAll()
+            
+            // PASO 2: Define las rutas para administradores antes de anyRequest()
+            .requestMatchers(new AntPathRequestMatcher("/gerentes/**"))
+                .hasAuthority("ROLE_ADMIN")
+            
+            // PASO 3: Por último, establece que todo lo demás requiere autenticación
+            .anyRequest()
+                .authenticated()
         );
 
         // Configuración para permitir la consola H2 en desarrollo

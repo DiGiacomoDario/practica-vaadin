@@ -1,5 +1,9 @@
 package com.gerentes.agenda.views;
 
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
 import com.gerentes.agenda.model.Gerente;
 import com.gerentes.agenda.model.Usuario;
 import com.gerentes.agenda.security.SecurityUtils;
@@ -13,6 +17,7 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
@@ -23,10 +28,8 @@ import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
-import jakarta.annotation.security.PermitAll;
-import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.Optional;
+import jakarta.annotation.security.PermitAll;
 
 /**
  * Vista para que los usuarios puedan ver y editar su información personal.
@@ -130,7 +133,7 @@ public class PerfilView extends VerticalLayout {
         HorizontalLayout buttonLayout = new HorizontalLayout(guardarButton, cancelarButton);
         buttonLayout.setWidthFull();
         buttonLayout.setPadding(true);
-        buttonLayout.setJustifyContentMode(JustifyContentMode.END);
+        buttonLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
         
         VerticalLayout layout = new VerticalLayout(datosPersonalesTitle, formLayout, buttonLayout);
         layout.setPadding(false);
@@ -165,7 +168,7 @@ public class PerfilView extends VerticalLayout {
         HorizontalLayout buttonLayout = new HorizontalLayout(cambiarButton, limpiarButton);
         buttonLayout.setWidthFull();
         buttonLayout.setPadding(true);
-        buttonLayout.setJustifyContentMode(JustifyContentMode.END);
+        buttonLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
         
         VerticalLayout layout = new VerticalLayout(credencialesTitle, formLayout, buttonLayout);
         layout.setPadding(false);
@@ -194,9 +197,6 @@ public class PerfilView extends VerticalLayout {
     }
 
     private void cambiarContrasena() {
-        // Para este ejemplo, simplemente mostraremos un mensaje
-        // En una implementación real, verificaríamos la contraseña actual y actualizaríamos la nueva
-        
         if (passwordNueva.isEmpty() || passwordConfirmacion.isEmpty() || passwordActual.isEmpty()) {
             Notification.show("Debe completar todos los campos", 3000, Notification.Position.BOTTOM_CENTER)
                     .addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -209,14 +209,28 @@ public class PerfilView extends VerticalLayout {
             return;
         }
         
-        // En una aplicación real, aquí iría la verificación de la contraseña actual y 
-        // el cambio de contraseña usando un servicio
-        Notification.show("La funcionalidad de cambio de contraseña será implementada en la siguiente fase", 
-                3000, Notification.Position.BOTTOM_CENTER)
-                .addThemeVariants(NotificationVariant.LUMO_PRIMARY);
-                
-        passwordActual.clear();
-        passwordNueva.clear();
-        passwordConfirmacion.clear();
+        // Verificar que la contraseña actual es correcta
+        try {
+            // Necesitamos verificar que la contraseña actual es correcta
+            if (!securityUtils.passwordMatches(passwordActual.getValue(), usuarioActual.getPassword())) {
+                Notification.show("La contraseña actual es incorrecta", 3000, Notification.Position.BOTTOM_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                return;
+            }
+            
+            // Actualizar la contraseña
+            usuarioService.actualizarPassword(usuarioActual, passwordNueva.getValue());
+            
+            Notification.show("Contraseña actualizada correctamente", 3000, Notification.Position.BOTTOM_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    
+            passwordActual.clear();
+            passwordNueva.clear();
+            passwordConfirmacion.clear();
+        } catch (Exception e) {
+            Notification.show("Error al cambiar la contraseña: " + e.getMessage(), 
+                    3000, Notification.Position.BOTTOM_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
     }
 }
