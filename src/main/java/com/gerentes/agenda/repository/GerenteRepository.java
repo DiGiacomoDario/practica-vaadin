@@ -1,10 +1,11 @@
 package com.gerentes.agenda.repository;
 
-import com.gerentes.agenda.model.Gerente;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import com.gerentes.agenda.model.Gerente;
 
 /**
  * Repositorio para gestionar las operaciones CRUD de la entidad Gerente.
@@ -35,4 +36,14 @@ public interface GerenteRepository extends JpaRepository<Gerente, Long> {
      * @return Lista de gerentes que coinciden con el criterio de búsqueda
      */
     java.util.List<Gerente> findByNombreContainingIgnoreCase(String nombre);
+    
+    /**
+     * Busca gerentes cuyo nombre contenga la cadena de texto especificada (búsqueda insensible a mayúsculas/minúsculas),
+     * con soporte para paginación.
+     * 
+     * @param nombre Parte del nombre a buscar
+     * @param pageable Información de paginación
+     * @return Página de gerentes que coinciden con el criterio de búsqueda
+     */
+    org.springframework.data.domain.Page<Gerente> findByNombreContainingIgnoreCase(String nombre, org.springframework.data.domain.Pageable pageable);
 }

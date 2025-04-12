@@ -112,4 +112,15 @@ public class GerenteService {
     public List<Gerente> buscarPorNombreContiene(String nombre) {
         return gerenteRepository.findByNombreContainingIgnoreCase(nombre);
     }
+
+    /**
+     * Busca gerentes cuyo nombre contiene la cadena proporcionada, con paginación.
+     * 
+     * @param nombre Parte del nombre a buscar
+     * @param pageable Información de paginación
+     * @return Página de gerentes que coinciden con el criterio
+     */
+    public Page<Gerente> buscarPorNombreContienePaginado(String nombre, Pageable pageable) {
+        return gerenteRepository.findByNombreContainingIgnoreCase(nombre, pageable);
+    }
 }
