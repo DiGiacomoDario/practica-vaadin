@@ -1,0 +1,63 @@
+plugins {
+    id 'org.springframework.boot' version '3.2.3'
+    id 'io.spring.dependency-management' version '1.1.4'
+    id 'java'
+    id 'com.vaadin' version '24.3.5'
+}
+
+group = 'com.gerentes'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
+
+repositories {
+    mavenCentral()
+    maven { url 'https://maven.vaadin.com/vaadin-addons' }
+    maven { url 'https://maven.vaadin.com/vaadin-prereleases' }
+    // Agregar el repositorio de Vaadin Directory específicamente
+    maven { url 'https://maven.vaadin.com/vaadin-addons' }
+}
+
+ext {
+    set('vaadinVersion', '24.3.5')
+}
+
+dependencies {
+    // Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation 'org.springframework.boot:spring-boot-devtools'
+
+    // Base de datos H2 para desarrollo
+    runtimeOnly 'com.h2database:h2'
+    
+    // Vaadin
+    implementation 'com.vaadin:vaadin-spring-boot-starter'
+    
+    // Vaadin Full Calendar component - versión actualizada compatible con Vaadin 24+
+    implementation 'org.vaadin.stefan:fullcalendar2:6.0.3'
+    
+    // Lombok para reducir código repetitivo
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    
+    // Pruebas
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "com.vaadin:vaadin-bom:${vaadinVersion}"
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// Configuración para producción
+vaadin {
+    productionMode = false
+}
