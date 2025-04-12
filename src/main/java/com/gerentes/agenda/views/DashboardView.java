@@ -95,6 +95,7 @@ public class DashboardView extends VerticalLayout {
         add(welcomeTitle, welcomeText);
     }
 
+    
     private void createGerenteDashboard() {
         Optional<Gerente> gerenteActual = securityUtils.getCurrentGerente();
         
