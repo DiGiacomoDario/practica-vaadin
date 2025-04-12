@@ -10,9 +10,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Servicio para manejar operaciones relacionadas con Eventos.
@@ -180,5 +184,60 @@ public class EventoService {
         sb.append("Sistema de Agenda de Gerentes");
         
         return sb.toString();
+    }
+
+    /**
+     * Cuenta el total de eventos registrados en el mes actual.
+     * 
+     * @return Cantidad de eventos en el mes actual
+     */
+    public long contarEventosMes() {
+        LocalDateTime inicioMes = LocalDateTime.of(
+                LocalDate.now().withDayOfMonth(1), 
+                LocalTime.MIN);
+        
+        LocalDateTime finMes = LocalDateTime.of(
+                YearMonth.now().atEndOfMonth(), 
+                LocalTime.MAX);
+        
+        return eventoRepository.findAll().stream()
+                .filter(evento -> !evento.getFechaInicio().isBefore(inicioMes) && !evento.getFechaInicio().isAfter(finMes))
+                .count();
+    }
+    
+    /**
+     * Cuenta los eventos que ocurrirán en los próximos días para un gerente específico.
+     * 
+     * @param gerente El gerente cuyos eventos se contarán
+     * @param dias Cantidad de días a considerar
+     * @return Número de eventos en los próximos días
+     */
+    public long contarEventosProximosDias(Gerente gerente, int dias) {
+        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime limite = ahora.plusDays(dias);
+        
+        return eventoRepository.findByGerente(gerente).stream()
+                .filter(evento -> !evento.getFechaInicio().isBefore(ahora) && !evento.getFechaInicio().isAfter(limite))
+                .count();
+    }
+    
+    /**
+     * Cuenta los eventos del mes actual para un gerente específico.
+     * 
+     * @param gerente El gerente cuyos eventos se contarán
+     * @return Número de eventos en el mes actual
+     */
+    public long contarEventosMesGerente(Gerente gerente) {
+        LocalDateTime inicioMes = LocalDateTime.of(
+                LocalDate.now().withDayOfMonth(1), 
+                LocalTime.MIN);
+        
+        LocalDateTime finMes = LocalDateTime.of(
+                YearMonth.now().atEndOfMonth(), 
+                LocalTime.MAX);
+        
+        return eventoRepository.findByGerente(gerente).stream()
+                .filter(evento -> !evento.getFechaInicio().isBefore(inicioMes) && !evento.getFechaInicio().isAfter(finMes))
+                .count();
     }
 }

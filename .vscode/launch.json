@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-AgendaApplication<practica-vaadin>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.gerentes.agenda.AgendaApplication",
+            "projectName": "practica-vaadin",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
