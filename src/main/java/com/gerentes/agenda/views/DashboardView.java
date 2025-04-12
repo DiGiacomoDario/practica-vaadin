@@ -1,5 +1,9 @@
 package com.gerentes.agenda.views;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Optional;
+
 import com.gerentes.agenda.model.Gerente;
 import com.gerentes.agenda.security.SecurityUtils;
 import com.gerentes.agenda.service.EventoService;
@@ -8,19 +12,16 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
-import com.vaadin.flow.component.icon.Icon;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.theme.lumo.LumoUtility;
-import jakarta.annotation.security.PermitAll;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Optional;
+import jakarta.annotation.security.PermitAll;
 
 /**
  * Vista principal del Dashboard que muestra información relevante según el rol del usuario.
@@ -95,7 +96,6 @@ public class DashboardView extends VerticalLayout {
         add(welcomeTitle, welcomeText);
     }
 
-    
     private void createGerenteDashboard() {
         Optional<Gerente> gerenteActual = securityUtils.getCurrentGerente();
         

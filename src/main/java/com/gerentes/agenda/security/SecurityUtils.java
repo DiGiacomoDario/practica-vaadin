@@ -91,7 +91,7 @@ public class SecurityUtils {
      * @param role El nombre del rol a verificar
      * @return true si el usuario tiene el rol, false en caso contrario
      */
-    public boolean hasRole(String role) {
+    public static boolean hasRole(String role) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         return authentication != null && authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
