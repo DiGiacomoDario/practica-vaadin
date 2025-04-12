@@ -1,15 +1,16 @@
 package com.gerentes.agenda.service;
 
-import com.gerentes.agenda.model.Gerente;
-import com.gerentes.agenda.repository.GerenteRepository;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
+import com.gerentes.agenda.model.Gerente;
+import com.gerentes.agenda.repository.GerenteRepository;
 
 /**
  * Servicio para manejar operaciones relacionadas con los Gerentes.
@@ -122,5 +123,14 @@ public class GerenteService {
      */
     public Page<Gerente> buscarPorNombreContienePaginado(String nombre, Pageable pageable) {
         return gerenteRepository.findByNombreContainingIgnoreCase(nombre, pageable);
+    }
+    
+    /**
+     * Lista todos los gerentes (alias de listarTodos para mayor claridad).
+     * 
+     * @return Lista de todos los gerentes
+     */
+    public List<Gerente> listarGerentes() {
+        return listarTodos();
     }
 }

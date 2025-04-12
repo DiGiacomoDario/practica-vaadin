@@ -58,8 +58,21 @@ public class SecurityUtils {
      * @return Optional con el usuario si está autenticado y existe, empty en caso contrario
      */
     public Optional<Usuario> getCurrentUser() {
-        return getCurrentUsername()
-                .flatMap(usuarioRepository::findByUsername);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof Usuario) {
+            return Optional.of((Usuario) authentication.getPrincipal());
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Obtiene el usuario actualmente autenticado. 
+     * Este método no devuelve Optional, se usa cuando es seguro que hay un usuario autenticado.
+     * 
+     * @return El usuario autenticado o null si no hay usuario
+     */
+    public Usuario getUsuarioAutenticado() {
+        return getCurrentUser().orElse(null);
     }
 
     /**
@@ -78,15 +91,20 @@ public class SecurityUtils {
      * @param role El nombre del rol a verificar
      * @return true si el usuario tiene el rol, false en caso contrario
      */
-    public static boolean hasRole(String role) {
+    public boolean hasRole(String role) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return false;
-        }
-        
-        return authentication.getAuthorities().stream()
+        return authentication != null && authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(authority -> authority.equals(role));
+    }
+
+    /**
+     * Comprueba si el usuario actual es un administrador.
+     * 
+     * @return true si el usuario es admin, false en caso contrario
+     */
+    public boolean isAdmin() {
+        return hasRole("ROLE_ADMIN");
     }
 
     /**

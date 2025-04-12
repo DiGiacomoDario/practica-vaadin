@@ -1,12 +1,19 @@
 package com.gerentes.agenda.model;
 
-import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Entidad que representa a un Gerente en el sistema.
@@ -36,4 +43,15 @@ public class Gerente {
 
     @OneToMany(mappedBy = "gerente", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Evento> eventos = new ArrayList<>();
+    
+    /**
+     * Obtiene el nombre completo del gerente con información adicional.
+     * @return Nombre y cargo del gerente
+     */
+    public String getNombreCompleto() {
+        if (cargo != null && !cargo.isEmpty()) {
+            return nombre + " (" + cargo + ")";
+        }
+        return nombre;
+    }
 }

@@ -5,186 +5,304 @@ import com.gerentes.agenda.model.EventoEstado;
 import com.gerentes.agenda.model.Gerente;
 import com.gerentes.agenda.security.SecurityUtils;
 import com.gerentes.agenda.service.EventoService;
+import com.gerentes.agenda.service.GerenteService;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
+import com.vaadin.flow.component.datetimepicker.DateTimePicker;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.H3;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.Icon;
-import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.data.provider.ListDataProvider;
-import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.component.select.Select;
+import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.PermitAll;
-import org.springframework.beans.factory.annotation.Autowired;
 
+import org.springframework.stereotype.Component;
+import org.vaadin.stefan.fullcalendar.Entry;
+import org.vaadin.stefan.fullcalendar.FullCalendar;
+import org.vaadin.stefan.fullcalendar.FullCalendarBuilder;
+import org.vaadin.stefan.fullcalendar.CalendarViewImpl;
+import org.vaadin.stefan.fullcalendar.BusinessHours;
+import org.vaadin.stefan.fullcalendar.DayOfWeek;
+
+import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Vista para la gestión de eventos mediante una grilla en lugar de un calendario.
- * Esta es una implementación temporal hasta que se resuelva la integración con FullCalendar.
+ * Vista para la gestión de eventos utilizando un calendario.
  */
 @Route(value = "eventos", layout = MainLayout.class)
 @PageTitle("Eventos | Agenda de Gerentes")
 @PermitAll
+@Component
 public class EventosView extends VerticalLayout {
 
     private final EventoService eventoService;
     private final SecurityUtils securityUtils;
-    private Grid<Evento> grid;
+    private final GerenteService gerenteService;
+    
+    private FullCalendar calendar;
     private HorizontalLayout toolbar;
+    private LocalDateTime startDate;
+    private LocalDateTime endDate;
+    private final List<Entry> currentEntries = new ArrayList<>();
 
-    @Autowired
-    public EventosView(EventoService eventoService, SecurityUtils securityUtils) {
+    public EventosView(EventoService eventoService, SecurityUtils securityUtils, GerenteService gerenteService) {
         this.eventoService = eventoService;
         this.securityUtils = securityUtils;
-
-        addClassName("eventos-view");
+        this.gerenteService = gerenteService;
+        
         setSizeFull();
         setPadding(true);
-
-        H2 titulo = new H2("Gestión de Eventos");
-        add(titulo);
-
-        configureGrid();
-        configureToolbar();
-        add(toolbar, grid);
+        setSpacing(true);
         
+        configureCalendar();
+        configureToolbar();
+        
+        add(toolbar, calendar);
+        
+        // Cargar eventos iniciales
+        startDate = LocalDateTime.now().withDayOfMonth(1); // Primer día del mes actual
+        endDate = LocalDateTime.now().plusMonths(1); // Un mes después
         cargarEventos();
     }
 
-    private void configureGrid() {
-        grid = new Grid<>(Evento.class);
-        grid.addClassName("eventos-grid");
-        grid.setSizeFull();
+    private void configureCalendar() {
+        // Construir el calendario con las opciones deseadas
+        calendar = FullCalendarBuilder.create()
+                .withAutoBrowserTimezone()
+                .build();
         
-        // Configurar columnas
-        grid.removeAllColumns();
+        // Configurar opciones básicas
+        calendar.setLocale(new Locale("es", "ES"));
+        calendar.setFirstDay(java.time.DayOfWeek.MONDAY);
+        calendar.setNowIndicatorShown(true);
+        calendar.setNumberClickable(true);
+        calendar.setTimeslotsSelectable(true);
         
-        grid.addColumn(Evento::getTitulo).setHeader("Título").setAutoWidth(true).setSortable(true);
-        grid.addColumn(evento -> formatDateTime(evento.getFechaInicio())).setHeader("Fecha inicio").setAutoWidth(true).setSortable(true);
-        grid.addColumn(evento -> formatDateTime(evento.getFechaFin())).setHeader("Fecha fin").setAutoWidth(true).setSortable(true);
-        grid.addColumn(new ComponentRenderer<>(evento -> {
-            Span badge = new Span(evento.getEstado().toString());
-            badge.getElement().getThemeList().add("badge");
+        // Configurar horas de negocio (8:00 - 18:00 en días laborables)
+        BusinessHours businessHours = new BusinessHours();
+        // Añadir días de la semana individualmente
+        businessHours.addDay(DayOfWeek.MONDAY);
+        businessHours.addDay(DayOfWeek.TUESDAY);
+        businessHours.addDay(DayOfWeek.WEDNESDAY);
+        businessHours.addDay(DayOfWeek.THURSDAY);
+        businessHours.addDay(DayOfWeek.FRIDAY);
+        businessHours.setStartTime(8, 0);
+        businessHours.setEndTime(18, 0);
+        calendar.setBusinessHours(businessHours);
+        
+        calendar.setSizeFull();
+        calendar.changeView(CalendarViewImpl.DAY_GRID_MONTH);
+        
+        // Manejar eventos del calendario
+        calendar.addEntryClickedListener(event -> {
+            Entry entry = event.getEntry();
+            Long eventoId = (Long) entry.getCustomProperty("eventoId");
             
-            switch (evento.getEstado()) {
-                case PENDIENTE:
-                    badge.getElement().getThemeList().add("primary");
-                    break;
-                case CONFIRMADO:
-                    badge.getElement().getThemeList().add("success");
-                    break;
-                case CANCELADO:
-                    badge.getElement().getThemeList().add("error");
-                    break;
-                case COMPLETADO:
-                    badge.getElement().getThemeList().add("contrast");
-                    break;
-            }
-            
-            return badge;
-        })).setHeader("Estado").setAutoWidth(true);
-        
-        // Solo mostrar el gerente si el usuario es admin
-        if (SecurityUtils.hasRole("ROLE_ADMIN")) {
-            grid.addColumn(evento -> evento.getGerente() != null ? evento.getGerente().getNombre() : "").setHeader("Gerente").setAutoWidth(true);
-        }
-        
-        // Columna de acciones
-        grid.addComponentColumn(evento -> {
-            Button editButton = new Button(new Icon(VaadinIcon.EDIT), e -> abrirFormulario(evento));
-            editButton.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_SMALL);
-            
-            Button deleteButton = new Button(new Icon(VaadinIcon.TRASH), e -> confirmarEliminacion(evento));
-            deleteButton.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_SMALL, 
-                                          com.vaadin.flow.component.button.ButtonVariant.LUMO_ERROR);
-            
-            HorizontalLayout actions = new HorizontalLayout(editButton, deleteButton);
-            actions.setPadding(false);
-            return actions;
-        }).setHeader("Acciones").setAutoWidth(true).setFlexGrow(0);
-        
-        // Evento al hacer clic en una fila
-        grid.asSingleSelect().addValueChangeListener(event -> {
-            if (event.getValue() != null) {
-                abrirFormulario(event.getValue());
-                grid.asSingleSelect().clear(); // Limpiar selección para permitir seleccionar la misma fila de nuevo
+            if (eventoId != null) {
+                eventoService.buscarPorId(eventoId).ifPresent(this::abrirFormulario);
             }
         });
+        
+        calendar.addDateClickedListener(event -> {
+            LocalDateTime fechaInicio = event.getDate().atTime(8, 0);
+            boolean allDay = event.isAllDay();
+            
+            Evento evento = new Evento();
+            evento.setTitulo("");
+            evento.setFechaInicio(fechaInicio);
+            evento.setFechaFin(fechaInicio.plusHours(1));
+            evento.setEstado(EventoEstado.PENDIENTE);
+            
+            if (allDay) {
+                // Si se hace clic en un día completo, configuramos el evento para todo el día
+                evento.setFechaInicio(fechaInicio.withHour(0).withMinute(0));
+                evento.setFechaFin(fechaInicio.withHour(23).withMinute(59));
+            }
+            
+            abrirFormulario(evento);
+        });
+        
+        calendar.addDatesRenderedListener(event -> {
+            // Convertir LocalDate a LocalDateTime
+            startDate = event.getStart().atStartOfDay();
+            endDate = event.getEnd().atStartOfDay();
+            cargarEventos();
+        });
+        
+        calendar.addEntryDroppedListener(event -> {
+            Entry entry = event.getEntry();
+            updateEventFromEntry(entry);
+        });
+        
+        calendar.addEntryResizedListener(event -> {
+            Entry entry = event.getEntry();
+            updateEventFromEntry(entry);
+        });
     }
-    
+
     private void configureToolbar() {
-        toolbar = new HorizontalLayout();
-        toolbar.setWidthFull();
-        toolbar.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
+        Button refreshButton = new Button("Actualizar", e -> {
+            cargarEventos();
+            Notification.show("Calendario actualizado", 2000, Notification.Position.BOTTOM_CENTER);
+        });
         
-        Button addButton = new Button("Nuevo Evento", new Icon(VaadinIcon.PLUS));
-        addButton.addClickListener(e -> abrirFormulario(null));
+        Button newEventButton = new Button("Nuevo Evento", e -> {
+            LocalDateTime now = LocalDateTime.now();
+            Evento evento = new Evento();
+            evento.setTitulo("");
+            evento.setFechaInicio(now);
+            evento.setFechaFin(now.plusHours(1));
+            evento.setEstado(EventoEstado.PENDIENTE);
+            abrirFormulario(evento);
+        });
         
-        toolbar.add(addButton);
+        newEventButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        
+        Select<CalendarViewImpl> viewSelect = new Select<>();
+        viewSelect.setItems(CalendarViewImpl.DAY_GRID_MONTH, CalendarViewImpl.TIME_GRID_WEEK, CalendarViewImpl.TIME_GRID_DAY);
+        viewSelect.setItemLabelGenerator(view -> {
+            return switch (view) {
+                case DAY_GRID_MONTH -> "Mes";
+                case TIME_GRID_WEEK -> "Semana";
+                case TIME_GRID_DAY -> "Día";
+                default -> view.getClientSideValue();
+            };
+        });
+        viewSelect.setValue(CalendarViewImpl.DAY_GRID_MONTH);
+        viewSelect.addValueChangeListener(e -> calendar.changeView(e.getValue()));
+        
+        toolbar = new HorizontalLayout(refreshButton, newEventButton, viewSelect);
         toolbar.setPadding(true);
+        toolbar.setDefaultVerticalComponentAlignment(Alignment.CENTER);
+        toolbar.setWidthFull();
     }
 
     private void cargarEventos() {
-        // Obtener los eventos según el rol del usuario
-        Optional<Gerente> gerenteOpt = securityUtils.getCurrentGerente();
+        // Limpiar todas las entradas actuales
+        for (Entry entry : new ArrayList<>(currentEntries)) {
+            calendar.remove(entry);
+        }
+        currentEntries.clear();
         
-        if (gerenteOpt.isPresent() && !SecurityUtils.hasRole("ROLE_ADMIN")) {
-            // Si es un gerente (no admin), mostrar solo sus eventos
-            Gerente gerente = gerenteOpt.get();
-            List<Evento> eventos = eventoService.listarEventosPorGerente(gerente);
-            grid.setItems(eventos);
+        List<Evento> eventos;
+        
+        if (securityUtils.isAdmin()) {
+            // Administradores ven todos los eventos
+            eventos = eventoService.listarEventosPorRangoFechas(startDate, endDate);
         } else {
-            // Si es admin, mostrar todos los eventos
-            List<Evento> eventos = eventoService.listarTodos();
-            grid.setItems(eventos);
+            // Gerentes solo ven sus propios eventos
+            Optional<Gerente> gerenteOpt = securityUtils.getCurrentGerente();
+            if (gerenteOpt.isPresent()) {
+                Gerente gerente = gerenteOpt.get();
+                eventos = eventoService.listarEventosPorGerenteYRangoFechas(gerente, startDate, endDate);
+            } else {
+                Notification.show("No hay un gerente asociado a su usuario", 3000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                return;
+            }
+        }
+        
+        eventos.forEach(this::crearEntryDesdeEvento);
+    }
+
+    private Entry crearEntryDesdeEvento(Evento evento) {
+        Entry entry = new Entry();
+        
+        entry.setTitle(evento.getTitulo());
+        entry.setStart(evento.getFechaInicio());
+        entry.setEnd(evento.getFechaFin());
+        entry.setDescription(evento.getDescripcion());
+        entry.setAllDay(Duration.between(evento.getFechaInicio(), evento.getFechaFin()).toHours() >= 23);
+        entry.setColor(getColorForEstado(evento.getEstado()));
+        entry.setCustomProperty("eventoId", evento.getId());
+        
+        calendar.add(entry);
+        currentEntries.add(entry);
+        
+        return entry;
+    }
+
+    private String getColorForEstado(EventoEstado estado) {
+        if (estado == null) {
+            return "#3788d8"; // Color por defecto de FullCalendar
+        }
+        
+        return switch (estado) {
+            case PENDIENTE -> "#FFA500"; // Naranja
+            case CONFIRMADO -> "#3788d8"; // Azul
+            case COMPLETADO -> "#28a745"; // Verde
+            case CANCELADO -> "#dc3545"; // Rojo
+        };
+    }
+
+    private void updateEventFromEntry(Entry entry) {
+        Long eventoId = (Long) entry.getCustomProperty("eventoId");
+        if (eventoId == null) {
+            return;
+        }
+        
+        eventoService.buscarPorId(eventoId).ifPresent(evento -> {
+            evento.setFechaInicio(entry.getStart());
+            evento.setFechaFin(entry.getEnd());
+            
+            eventoService.actualizarEvento(eventoId, evento);
+            
+            Notification.show("Evento actualizado", 2000, Notification.Position.BOTTOM_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        });
+    }
+
+    private void guardarEvento(Evento evento) {
+        try {
+            if (evento.getId() == null) {
+                Evento savedEvento = eventoService.guardarEvento(evento);
+                crearEntryDesdeEvento(savedEvento);
+                Notification.show("Evento creado", 3000, Notification.Position.BOTTOM_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } else {
+                eventoService.actualizarEvento(evento.getId(), evento);
+                // Refrescar todas las entradas
+                for (Entry entry : new ArrayList<>(currentEntries)) {
+                    calendar.remove(entry);
+                }
+                currentEntries.clear();
+                cargarEventos();
+                Notification.show("Evento actualizado", 3000, Notification.Position.BOTTOM_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            }
+        } catch (Exception e) {
+            Notification.show("Error: " + e.getMessage(), 3000, Notification.Position.BOTTOM_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
-    
-    private String formatDateTime(LocalDateTime dateTime) {
-        if (dateTime == null) return "";
-        return dateTime.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
-    }
-    
-    private void confirmarEliminacion(Evento evento) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Confirmar eliminación");
-        
-        VerticalLayout content = new VerticalLayout();
-        content.add(new Span("¿Está seguro que desea eliminar el evento \"" + evento.getTitulo() + "\"?"));
-        content.setSpacing(true);
-        content.setPadding(true);
-        
-        Button cancelButton = new Button("Cancelar", e -> dialog.close());
-        Button deleteButton = new Button("Eliminar", e -> {
-            eliminarEvento(evento);
-            dialog.close();
-        });
-        deleteButton.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_PRIMARY, 
-                                     com.vaadin.flow.component.button.ButtonVariant.LUMO_ERROR);
-        
-        dialog.getFooter().add(cancelButton, deleteButton);
-        dialog.add(content);
-        
-        dialog.open();
-    }
-    
+
     private void eliminarEvento(Evento evento) {
         try {
             eventoService.eliminarEvento(evento.getId());
-            cargarEventos(); // Recargar la lista
+            // Refrescar todas las entradas
+            for (Entry entry : new ArrayList<>(currentEntries)) {
+                calendar.remove(entry);
+            }
+            currentEntries.clear();
+            cargarEventos();
             Notification.show("Evento eliminado", 3000, Notification.Position.BOTTOM_CENTER)
                     .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {
@@ -193,15 +311,24 @@ public class EventosView extends VerticalLayout {
         }
     }
 
-    private void abrirFormulario(Evento evento) {
-        EventoFormDialog dialog = new EventoFormDialog(evento, eventoService, securityUtils, savedEvento -> {
-            cargarEventos();  // Recargar eventos después de guardar
-            Notification.show(
-                    evento == null ? "Evento creado" : "Evento actualizado",
-                    3000, Notification.Position.BOTTOM_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-        });
+    private void confirmarEliminacion(Evento evento) {
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("Confirmar eliminación");
+        dialog.setText("¿Está seguro que desea eliminar el evento \"" + evento.getTitulo() + "\"?");
         
+        dialog.setCancelable(true);
+        dialog.setCancelText("Cancelar");
+        
+        dialog.setConfirmText("Eliminar");
+        dialog.setConfirmButtonTheme("error primary");
+        
+        dialog.addConfirmListener(e -> eliminarEvento(evento));
+        
+        dialog.open();
+    }
+
+    private void abrirFormulario(Evento evento) {
+        EventoFormDialog dialog = new EventoFormDialog(evento, this::guardarEvento);
         dialog.open();
     }
 
@@ -210,33 +337,168 @@ public class EventosView extends VerticalLayout {
      */
     private class EventoFormDialog extends Dialog {
         
-        public EventoFormDialog(Evento evento, EventoService eventoService, SecurityUtils securityUtils,
-                               java.util.function.Consumer<Evento> saveCallback) {
+        public EventoFormDialog(Evento evento, java.util.function.Consumer<Evento> saveCallback) {
             setWidth("500px");
-            setHeaderTitle(evento == null ? "Nuevo Evento" : "Editar Evento");
-
-            // Aquí se implementaría un formulario completo
-            // Por simplicidad, solo mostramos un mensaje indicando que esta funcionalidad se implementará después
+            setHeaderTitle(evento.getId() == null ? "Nuevo Evento" : "Editar Evento");
+            setCloseOnOutsideClick(false);
+            setDraggable(true);
+            setResizable(true);
             
-            VerticalLayout content = new VerticalLayout(
-                new H3("Formulario de Evento"),
-                new Span("Esta funcionalidad se implementará más adelante")
+            FormLayout formLayout = new FormLayout();
+            formLayout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
+            
+            TextField tituloField = new TextField("Título");
+            tituloField.setValue(evento.getTitulo() != null ? evento.getTitulo() : "");
+            tituloField.setWidthFull();
+            tituloField.setRequired(true);
+            
+            TextArea descripcionField = new TextArea("Descripción");
+            descripcionField.setValue(evento.getDescripcion() != null ? evento.getDescripcion() : "");
+            descripcionField.setWidthFull();
+            descripcionField.setHeight("100px");
+            
+            DateTimePicker fechaInicioField = new DateTimePicker("Fecha de inicio");
+            fechaInicioField.setValue(evento.getFechaInicio());
+            fechaInicioField.setWidthFull();
+            
+            DateTimePicker fechaFinField = new DateTimePicker("Fecha de fin");
+            fechaFinField.setValue(evento.getFechaFin());
+            fechaFinField.setWidthFull();
+            
+            fechaInicioField.addValueChangeListener(e -> {
+                if (e.getValue() != null && (fechaFinField.getValue() == null || fechaFinField.getValue().isBefore(e.getValue()))) {
+                    fechaFinField.setValue(e.getValue().plusHours(1));
+                }
+            });
+            
+            TextField ubicacionField = new TextField("Ubicación");
+            ubicacionField.setValue(evento.getUbicacion() != null ? evento.getUbicacion() : "");
+            ubicacionField.setWidthFull();
+            
+            ComboBox<EventoEstado> estadoField = new ComboBox<>("Estado");
+            estadoField.setItems(EventoEstado.values());
+            estadoField.setItemLabelGenerator(EventoEstado::getDescripcion);
+            estadoField.setValue(evento.getEstado() != null ? evento.getEstado() : EventoEstado.PENDIENTE);
+            estadoField.setWidthFull();
+            
+            Checkbox notificarField = new Checkbox("Notificar");
+            notificarField.setValue(evento.isNotificar());
+            
+            NumberField tiempoNotificacionField = new NumberField("Tiempo de notificación (minutos)");
+            tiempoNotificacionField.setMin(0);
+            tiempoNotificacionField.setValue(evento.getTiempoNotificacion() != null ? evento.getTiempoNotificacion().doubleValue() : 15d);
+            tiempoNotificacionField.setStep(5);
+            tiempoNotificacionField.setWidthFull();
+            tiempoNotificacionField.setVisible(notificarField.getValue());
+            
+            notificarField.addValueChangeListener(e -> tiempoNotificacionField.setVisible(e.getValue()));
+            
+            ComboBox<Gerente> gerenteField = new ComboBox<>("Gerente");
+            if (securityUtils.isAdmin()) {
+                // Los administradores pueden asignar eventos a cualquier gerente
+                gerenteField.setItems(gerenteService.listarGerentes());
+                gerenteField.setItemLabelGenerator(Gerente::getNombreCompleto);
+                gerenteField.setValue(evento.getGerente());
+                gerenteField.setWidthFull();
+            } else {
+                // Los gerentes solo pueden crear eventos para sí mismos
+                Optional<Gerente> gerenteOpt = securityUtils.getCurrentGerente();
+                if (gerenteOpt.isPresent()) {
+                    Gerente gerente = gerenteOpt.get();
+                    gerenteField.setItems(gerente);
+                    gerenteField.setItemLabelGenerator(Gerente::getNombreCompleto);
+                    gerenteField.setValue(gerente);
+                    gerenteField.setReadOnly(true);
+                    gerenteField.setWidthFull();
+                }
+            }
+            
+            formLayout.add(
+                tituloField, descripcionField, fechaInicioField, fechaFinField, 
+                ubicacionField, estadoField, notificarField, tiempoNotificacionField, gerenteField
             );
-            content.setPadding(true);
-            content.setSpacing(true);
+            
+            Div content = new Div(formLayout);
+            content.setSizeFull();
             add(content);
             
             Button cancelButton = new Button("Cancelar", e -> close());
+            
+            Button deleteButton = new Button("Eliminar", e -> {
+                close();
+                if (evento.getId() != null) {
+                    confirmarEliminacion(evento);
+                }
+            });
+            deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            deleteButton.setVisible(evento.getId() != null);
+            
             Button saveButton = new Button("Guardar", e -> {
-                // Aquí iría la lógica de guardado
+                if (tituloField.isEmpty()) {
+                    Notification.show("El título es obligatorio", 3000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    return;
+                }
+                
+                if (fechaInicioField.isEmpty() || fechaFinField.isEmpty()) {
+                    Notification.show("Las fechas son obligatorias", 3000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    return;
+                }
+                
+                if (fechaFinField.getValue().isBefore(fechaInicioField.getValue())) {
+                    Notification.show("La fecha de fin debe ser posterior a la fecha de inicio", 3000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    return;
+                }
+                
+                evento.setTitulo(tituloField.getValue());
+                evento.setDescripcion(descripcionField.getValue());
+                evento.setFechaInicio(fechaInicioField.getValue());
+                evento.setFechaFin(fechaFinField.getValue());
+                evento.setUbicacion(ubicacionField.getValue());
+                evento.setEstado(estadoField.getValue());
+                evento.setNotificar(notificarField.getValue());
+                
+                // Convertir el valor Double de tiempoNotificacionField a Integer para el evento
+                Integer tiempoNotificacion = notificarField.getValue() ? 
+                    (tiempoNotificacionField.getValue() != null ? 
+                        tiempoNotificacionField.getValue().intValue() : 15) : null;
+                evento.setTiempoNotificacion(tiempoNotificacion);
+                
+                evento.setGerente(gerenteField.getValue());
+                
                 close();
                 if (saveCallback != null) {
                     saveCallback.accept(evento);
                 }
             });
-            saveButton.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_PRIMARY);
+            saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
             
-            getFooter().add(cancelButton, saveButton);
+            boolean canEdit = evento.getId() == null || securityUtils.isAdmin() || 
+                    (evento.getGerente() != null && securityUtils.getCurrentGerente().isPresent() && 
+                     Objects.equals(evento.getGerente().getId(), securityUtils.getCurrentGerente().get().getId()));
+                
+            if (canEdit) {
+                // Solo mostramos el botón de guardar si:
+                // - Es un evento nuevo
+                // - El usuario es admin
+                // - El evento pertenece al gerente actual
+                getFooter().add(cancelButton, deleteButton, saveButton);
+            } else {
+                // Modo solo lectura
+                tituloField.setReadOnly(true);
+                descripcionField.setReadOnly(true);
+                fechaInicioField.setReadOnly(true);
+                fechaFinField.setReadOnly(true);
+                ubicacionField.setReadOnly(true);
+                estadoField.setReadOnly(true);
+                notificarField.setReadOnly(true);
+                tiempoNotificacionField.setReadOnly(true);
+                gerenteField.setReadOnly(true);
+                
+                getFooter().add(new Button("Cerrar", e -> close()));
+            }
         }
     }
 }

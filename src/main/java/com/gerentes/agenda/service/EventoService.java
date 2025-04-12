@@ -1,15 +1,5 @@
 package com.gerentes.agenda.service;
 
-import com.gerentes.agenda.model.Evento;
-import com.gerentes.agenda.model.EventoEstado;
-import com.gerentes.agenda.model.Gerente;
-import com.gerentes.agenda.repository.EventoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -17,6 +7,17 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.gerentes.agenda.model.Evento;
+import com.gerentes.agenda.model.EventoEstado;
+import com.gerentes.agenda.model.Gerente;
+import com.gerentes.agenda.repository.EventoRepository;
 
 /**
  * Servicio para manejar operaciones relacionadas con Eventos.
@@ -239,5 +240,25 @@ public class EventoService {
         return eventoRepository.findByGerente(gerente).stream()
                 .filter(evento -> !evento.getFechaInicio().isBefore(inicioMes) && !evento.getFechaInicio().isAfter(finMes))
                 .count();
+    }
+    
+    /**
+     * Lista todos los eventos en un rango de fechas.
+     * 
+     * @param inicio Fecha de inicio del rango
+     * @param fin Fecha de fin del rango
+     * @return Lista de eventos que ocurren en el rango especificado
+     */
+    public List<Evento> listarEventosPorRangoFechas(LocalDateTime inicio, LocalDateTime fin) {
+        return eventoRepository.findAll().stream()
+                .filter(evento -> 
+                    // El evento comienza durante el rango
+                    (!evento.getFechaInicio().isBefore(inicio) && !evento.getFechaInicio().isAfter(fin)) ||
+                    // El evento termina durante el rango
+                    (!evento.getFechaFin().isBefore(inicio) && !evento.getFechaFin().isAfter(fin)) ||
+                    // El evento comienza antes y termina después del rango (lo abarca)
+                    (evento.getFechaInicio().isBefore(inicio) && evento.getFechaFin().isAfter(fin))
+                )
+                .collect(Collectors.toList());
     }
 }
