@@ -33,10 +33,6 @@ import org.vaadin.stefan.fullcalendar.Entry;
 import org.vaadin.stefan.fullcalendar.FullCalendar;
 import org.vaadin.stefan.fullcalendar.FullCalendarBuilder;
 import org.vaadin.stefan.fullcalendar.CalendarViewImpl;
-import org.vaadin.stefan.fullcalendar.BusinessHours;
-
-
-
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -44,8 +40,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.time.DayOfWeek;
-
 
 /**
  * Vista para la gestión de eventos utilizando un calendario.
@@ -94,30 +88,21 @@ public class EventosView extends VerticalLayout {
         
         // Configurar opciones básicas
         calendar.setLocale(new Locale("es", "ES"));
-        calendar.setFirstDay(java.time.DayOfWeek.MONDAY);
+        calendar.setFirstDay(DayOfWeek.MONDAY);
         calendar.setNowIndicatorShown(true);
-        calendar.setNumberClickable(true);
-        calendar.setTimeslotsSelectable(true);
         
         // Configurar horas de negocio (8:00 - 18:00 en días laborables)
-        BusinessHours businessHours = new BusinessHours();
-        // Añadir días de la semana individualmente
-        businessHours.setDays(List.of(
-            DayOfWeek.MONDAY,
-            DayOfWeek.TUESDAY,
-            DayOfWeek.WEDNESDAY,
-            DayOfWeek.THURSDAY,
-            DayOfWeek.FRIDAY
-        ));
-        businessHours.setStart("08:00");
-        businessHours.setEnd("18:00");
-        calendar.setBusinessHours(businessHours);
+        calendar.setBusinessHours(
+            DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, 
+            DayOfWeek.THURSDAY, DayOfWeek.FRIDAY,
+            8, 0, 18, 0
+        );
         
         calendar.setSizeFull();
         calendar.changeView(CalendarViewImpl.DAY_GRID_MONTH);
         
         // Manejar eventos del calendario
-        calendar.addEntryClickedListener(event -> {
+        calendar.addEntryClickListener(event -> {
             Entry entry = event.getEntry();
             Long eventoId = (Long) entry.getCustomProperty("eventoId");
             
@@ -126,7 +111,7 @@ public class EventosView extends VerticalLayout {
             }
         });
         
-        calendar.addDayClickListener(event -> {
+        calendar.addDateClickListener(event -> {
             LocalDateTime fechaInicio = event.getDate().atTime(8, 0);
             boolean allDay = event.isAllDay();
             
@@ -203,7 +188,7 @@ public class EventosView extends VerticalLayout {
     private void cargarEventos() {
         // Limpiar todas las entradas actuales
         for (Entry entry : new ArrayList<>(currentEntries)) {
-            calendar.removeEntry(entry);
+            calendar.remove(entry);
         }
         currentEntries.clear();
         
@@ -239,7 +224,7 @@ public class EventosView extends VerticalLayout {
         entry.setColor(getColorForEstado(evento.getEstado()));
         entry.setCustomProperty("eventoId", evento.getId());
         
-        calendar.addEntry(entry);
+        calendar.add(entry);
         currentEntries.add(entry);
         
         return entry;

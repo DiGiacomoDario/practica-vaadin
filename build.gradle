@@ -32,16 +32,14 @@ dependencies {
     // Base de datos H2 para desarrollo
     runtimeOnly 'com.h2database:h2'
     
+    // PostgreSQL para entorno Docker/Producción
+    runtimeOnly 'org.postgresql:postgresql'
+    
     // Vaadin
     implementation 'com.vaadin:vaadin-spring-boot-starter'
     
     // Vaadin Full Calendar component - versión actualizada compatible con Vaadin 24+
     implementation 'org.vaadin.stefan:fullcalendar2:6.3.0'
-    // dame dependencia para org.vaadin.stefan.fullcalendar.DayOfWeek
-    
-
-
-    
     
     // Lombok para reducir código repetitivo
     compileOnly 'org.projectlombok:lombok'
