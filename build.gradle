@@ -40,7 +40,8 @@ dependencies {
     
     // Vaadin Full Calendar component - versión actualizada compatible con Vaadin 24+
     implementation 'org.vaadin.stefan:fullcalendar2:6.3.0'
-    
+//    implementation 'org.vaadin.stefan:fullcalendar2:2.3.2'
+
     // Lombok para reducir código repetitivo
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

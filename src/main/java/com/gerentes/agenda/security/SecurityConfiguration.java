@@ -36,29 +36,25 @@ public class SecurityConfiguration extends VaadinWebSecurity {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        // Call the parent configuration first to set up Vaadin security
-        super.configure(http);
-        
         // Configura las rutas públicas y las que requieren autenticación
         http.authorizeHttpRequests(auth -> {
             // PASO 1: Define los recursos públicos primero
             auth.requestMatchers(
-                    // Recursos estáticos de Vaadin
-                    new AntPathRequestMatcher("/VAADIN/**"),
-                    new AntPathRequestMatcher("/icons/**"),
-                    new AntPathRequestMatcher("/images/**"),
-                    // Consola H2 para desarrollo
-                    new AntPathRequestMatcher("/h2-console/**"),
-                    // Otros recursos públicos
-                    new AntPathRequestMatcher("/manifest.webmanifest"),
-                    new AntPathRequestMatcher("/sw.js"),
-                    new AntPathRequestMatcher("/offline.html")
-                ).permitAll();
-            
+                    new AntPathRequestMatcher("/VAADIN/**"),           // Recursos de Vaadin
+                    new AntPathRequestMatcher("/frontend/**"),         // Recursos frontend de Vaadin
+                    new AntPathRequestMatcher("/icons/**"),            // Iconos
+                    new AntPathRequestMatcher("/images/**"),           // Imágenes
+                    new AntPathRequestMatcher("/h2-console/**"),       // Consola H2
+                    new AntPathRequestMatcher("/manifest.webmanifest"),// Manifest para PWA
+                    new AntPathRequestMatcher("/sw.js"),               // Service worker
+                    new AntPathRequestMatcher("/offline.html"),        // Página offline
+                    new AntPathRequestMatcher("/login")               // Ruta de login
+            ).permitAll();
+
             // PASO 2: Define las rutas para administradores
             auth.requestMatchers(new AntPathRequestMatcher("/gerentes/**"))
-                .hasAuthority("ROLE_ADMIN");
-            
+                    .hasAuthority("ROLE_ADMIN");
+
             // PASO 3: Por último, establece que todo lo demás requiere autenticación
             auth.anyRequest().authenticated();
         });

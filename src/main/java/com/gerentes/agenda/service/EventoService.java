@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +30,7 @@ public class EventoService {
 
     private final EventoRepository eventoRepository;
     private final EmailService emailService;
+    private static final Logger log = LoggerFactory.getLogger(EventoService.class);
 
     @Autowired
     public EventoService(EventoRepository eventoRepository, EmailService emailService) {
@@ -149,15 +152,24 @@ public class EventoService {
      */
     public void procesarNotificaciones() {
         LocalDateTime ahora = LocalDateTime.now();
-        List<Evento> eventosParaNotificar = eventoRepository.findEventosParaNotificar(ahora);
-        
-        for (Evento evento : eventosParaNotificar) {
-            if (evento.isNotificar() && evento.getGerente() != null && evento.getGerente().getEmail() != null) {
+        List<Evento> eventos = eventoRepository.findAll().stream()
+                .filter(e -> e.isNotificar() && e.getFechaInicio().isAfter(ahora))
+                .filter(e -> {
+                    LocalDateTime limite = ahora.plusMinutes(e.getTiempoNotificacion());
+                    return e.getFechaInicio().isBefore(limite) || e.getFechaInicio().isEqual(limite);
+                })
+                .collect(Collectors.toList());
+
+        log.info("Found {} events to notify: {}", eventos.size(), eventos); // Add logging
+        for (Evento evento : eventos) {
+            if (evento.getGerente() != null && evento.getGerente().getEmail() != null) {
                 String destinatario = evento.getGerente().getEmail();
                 String asunto = "Recordatorio: " + evento.getTitulo();
                 String cuerpo = construirCuerpoEmail(evento);
-                
+                log.info("Sending email to {} for event: {}", destinatario, evento.getTitulo());
                 emailService.enviarEmail(destinatario, asunto, cuerpo);
+            } else {
+                log.warn("Skipping notification for event {}: No valid gerente or email", evento.getTitulo());
             }
         }
     }

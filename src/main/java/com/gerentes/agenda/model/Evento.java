@@ -53,11 +53,16 @@ public class Evento {
     
     // Método auxiliar para verificar si se debe notificar ahora
     public boolean debeNotificarAhora(LocalDateTime ahora) {
-        if (!notificar || tiempoNotificacion == null) {
+        if (!notificar || tiempoNotificacion == null || tiempoNotificacion < 0 ||
+                estado == EventoEstado.CANCELADO || estado == EventoEstado.COMPLETADO) {
             return false;
         }
-        
         LocalDateTime tiempoNotificacion = fechaInicio.minusMinutes(this.tiempoNotificacion);
-        return !ahora.isBefore(tiempoNotificacion) && ahora.isBefore(fechaInicio);
+        LocalDateTime finVentana = fechaInicio.plusMinutes(1); // 1-minute buffer
+        return !ahora.isBefore(tiempoNotificacion) && ahora.isBefore(finVentana);
+    }
+
+    public void setTiempoNotificacion(Integer tiempoNotificacion) {
+        this.tiempoNotificacion = (tiempoNotificacion != null && tiempoNotificacion >= 0) ? tiempoNotificacion : null;
     }
 }

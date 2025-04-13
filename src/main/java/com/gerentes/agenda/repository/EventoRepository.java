@@ -64,7 +64,6 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
      * @param ahora Fecha y hora actual
      * @return Lista de eventos que deben ser notificados
      */
-    @Query("SELECT e FROM Evento e WHERE e.notificar = true AND e.fechaInicio > :ahora AND " +
-           "e.fechaInicio <= DATEADD(MINUTE, e.tiempoNotificacion, :ahora)")
-    List<Evento> findEventosParaNotificar(@Param("ahora") LocalDateTime ahora);
+    @Query("SELECT e FROM Evento e WHERE e.notificar = true AND e.fechaInicio > :ahora AND e.fechaInicio <= :limite")
+    List<Evento> findEventosParaNotificar(@Param("ahora") LocalDateTime ahora, @Param("limite") LocalDateTime limite);
 }
