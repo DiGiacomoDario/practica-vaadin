@@ -11,10 +11,10 @@ sourceCompatibility = '17'
 
 repositories {
     mavenCentral()
+    maven { url 'https://repo1.maven.org/maven2/' }
     maven { url 'https://maven.vaadin.com/vaadin-addons' }
     maven { url 'https://maven.vaadin.com/vaadin-prereleases' }
-    // Agregar el repositorio de Vaadin Directory específicamente
-    maven { url 'https://maven.vaadin.com/vaadin-addons' }
+
 }
 
 ext {
@@ -42,6 +42,8 @@ dependencies {
     implementation 'org.vaadin.stefan:fullcalendar2:6.3.0'
 //    implementation 'org.vaadin.stefan:fullcalendar2:2.3.2'
 
+    implementation 'org.webjars.npm:tippy.js:6.3.7'
+
     // Lombok para reducir código repetitivo
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
@@ -64,4 +66,9 @@ test {
 // Configuración para producción
 vaadin {
     productionMode = false
+    optimizeBundle = false // Simplify dev mode
+}
+
+tasks.named('bootRun') {
+    dependsOn('vaadinPrepareFrontend')
 }

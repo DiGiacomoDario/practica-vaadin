@@ -4,6 +4,7 @@ import com.gerentes.agenda.security.SecurityUtils;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
@@ -19,6 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 /**
  * Layout principal de la aplicación que incluye el menú de navegación y opciones de usuario.
  */
+//@JsModule("./tippy.js")
 public class MainLayout extends AppLayout {
 
     private final AccessAnnotationChecker accessChecker;

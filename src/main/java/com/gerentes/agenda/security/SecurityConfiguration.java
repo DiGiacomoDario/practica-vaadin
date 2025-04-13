@@ -10,13 +10,9 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-
 import com.gerentes.agenda.views.LoginView;
 import com.vaadin.flow.spring.security.VaadinWebSecurity;
 
-/**
- * Configuración de seguridad de la aplicación.
- */
 @EnableWebSecurity
 @EnableMethodSecurity
 @Configuration
@@ -36,34 +32,49 @@ public class SecurityConfiguration extends VaadinWebSecurity {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        // Configura las rutas públicas y las que requieren autenticación
         http.authorizeHttpRequests(auth -> {
-            // PASO 1: Define los recursos públicos primero
             auth.requestMatchers(
-                    new AntPathRequestMatcher("/VAADIN/**"),           // Recursos de Vaadin
-                    new AntPathRequestMatcher("/frontend/**"),         // Recursos frontend de Vaadin
-                    new AntPathRequestMatcher("/icons/**"),            // Iconos
-                    new AntPathRequestMatcher("/images/**"),           // Imágenes
-                    new AntPathRequestMatcher("/h2-console/**"),       // Consola H2
-                    new AntPathRequestMatcher("/manifest.webmanifest"),// Manifest para PWA
-                    new AntPathRequestMatcher("/sw.js"),               // Service worker
-                    new AntPathRequestMatcher("/offline.html"),        // Página offline
-                    new AntPathRequestMatcher("/login")               // Ruta de login
+                    new AntPathRequestMatcher("/VAADIN/**"),
+                    new AntPathRequestMatcher("/VAADIN/push/**"),
+                    new AntPathRequestMatcher("/frontend/**"),
+                    new AntPathRequestMatcher("/styles/**"), // Add for CSS
+                    new AntPathRequestMatcher("/icons/**"),
+                    new AntPathRequestMatcher("/images/**"),
+                    new AntPathRequestMatcher("/h2-console/**"),
+                    new AntPathRequestMatcher("/manifest.webmanifest"),
+                    new AntPathRequestMatcher("/sw.js"),
+                    new AntPathRequestMatcher("/offline.html"),
+                    new AntPathRequestMatcher("/offline-stub.html"), // Add this
+                    new AntPathRequestMatcher("/login"),
+                    new AntPathRequestMatcher("/login/**"),
+                    new AntPathRequestMatcher("/error/**")
             ).permitAll();
 
-            // PASO 2: Define las rutas para administradores
             auth.requestMatchers(new AntPathRequestMatcher("/gerentes/**"))
                     .hasAuthority("ROLE_ADMIN");
 
-            // PASO 3: Por último, establece que todo lo demás requiere autenticación
             auth.anyRequest().authenticated();
         });
 
-        // Configuración para permitir la consola H2 en desarrollo
-        http.csrf(csrf -> csrf.ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")));
+        // Disable CSRF for Vaadin push and H2 console
+        http.csrf(csrf -> csrf.ignoringRequestMatchers(
+                new AntPathRequestMatcher("/VAADIN/**"),
+                new AntPathRequestMatcher("/VAADIN/push/**"),
+                new AntPathRequestMatcher("/h2-console/**")
+        ));
+
+        // Allow H2 console in frames
         http.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()));
 
-        // Configuración de la vista de login usando Vaadin
+        // Configure login
+        http.formLogin(form -> form
+                .loginPage("/login")
+                .permitAll()
+                .defaultSuccessUrl("/dashboard", true)
+                .failureUrl("/login?error")
+        );
+
+        // Use Vaadin's login view
         setLoginView(http, LoginView.class);
     }
 }

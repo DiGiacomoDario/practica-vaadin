@@ -13,9 +13,14 @@ import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.datetimepicker.DateTimePicker;
+import com.vaadin.flow.component.dependency.CssImport;
+import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
@@ -39,6 +44,7 @@ import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -48,6 +54,9 @@ import java.util.Optional;
 /**
  * Vista para la gestión de eventos utilizando un calendario.
  */
+//@CssImport("./styles/shared-styles.css")
+//@CssImport(value = "webjars/tippy.js/6.3.7/dist/tippy.css", themeFor = "vaadin-full-calendar")
+//@JsModule("webjars/tippy.js/6.3.7/dist/tippy.umd.js")
 @Route(value = "eventos", layout = MainLayout.class)
 @PageTitle("Eventos | Agenda de Gerentes")
 @PermitAll
@@ -91,15 +100,12 @@ public class EventosView extends VerticalLayout {
     }
 
     private void configureCalendar() {
-        // Construir el calendario con las opciones deseadas
         calendar = FullCalendarBuilder.create().build();
 
-        // Configurar opciones básicas
         calendar.setLocale(new Locale("es", "ES"));
         calendar.setFirstDay(DayOfWeek.MONDAY);
         calendar.setNowIndicatorShown(true);
 
-        // Configurar horas de negocio (8:00 - 18:00 en días laborables)
         calendar.setBusinessHours(
                 new BusinessHours(
                         LocalTime.of(8, 0),
@@ -112,17 +118,42 @@ public class EventosView extends VerticalLayout {
         calendar.setSizeFull();
         calendar.changeView(CalendarViewImpl.DAY_GRID_MONTH);
 
-        // Manejar clics en eventos
+        // Add tooltip support
+        calendar.getElement().executeJs(
+                "const calendar = $0;" +
+                        "calendar.setOption('eventDidMount', function(info) {" +
+                        "  const event = info.event;" +
+                        "  const el = info.el;" +
+                        "  const notificar = event.extendedProps.notificar || false;" +
+                        "  const tiempoNotificacion = event.extendedProps.tiempoNotificacion || 0;" +
+                        "  const ubicacion = event.extendedProps.ubicacion || 'Sin ubicación';" +
+                        "  const estado = event.extendedProps.estado || 'Desconocido';" +
+                        "  const gerente = event.extendedProps.gerente || 'N/A';" +
+                        "  tippy(el, {" +
+                        "    content: '<strong>' + event.title.replace(' 🔔', '') + '</strong><br>" +
+                        "      Descripción: ' + (event.extendedProps.description || 'Sin descripción') + '<br>" +
+                        "      Ubicación: ' + ubicacion + '<br>" +
+                        "      Estado: ' + estado + '<br>" +
+                        "      Gerente: ' + gerente + '<br>" +
+                        "      Notificación: ' + (notificar ? 'Sí (' + tiempoNotificacion + ' min antes)' : 'No')," +
+                        "    allowHTML: true," +
+                        "    placement: 'top'," +
+                        "    delay: [200, 0]," +
+                        "  });" +
+                        "});",
+                calendar.getElement()
+        );
+
+        // Event click handler
         calendar.addEntryClickedListener(event -> {
             Entry entry = event.getEntry();
             Long eventoId = entry.getCustomProperty("eventoId");
-
             if (eventoId != null) {
                 eventoService.buscarPorId(eventoId).ifPresent(this::abrirFormulario);
             }
         });
 
-        // Manejar clics en fechas vacías
+        // Date click handler
         calendar.addTimeslotsSelectedListener(event -> {
             LocalDateTime fechaInicio = event.getStart();
             boolean allDay = event.isAllDay();
@@ -132,62 +163,56 @@ public class EventosView extends VerticalLayout {
             evento.setFechaInicio(fechaInicio);
             evento.setFechaFin(fechaInicio.plusHours(1));
             evento.setEstado(EventoEstado.PENDIENTE);
-
             if (allDay) {
                 evento.setFechaInicio(fechaInicio.withHour(0).withMinute(0));
                 evento.setFechaFin(fechaInicio.withHour(23).withMinute(59));
             }
-
+            // Set current gerente for non-admin users
+            if (!securityUtils.isAdmin()) {
+                securityUtils.getCurrentGerente().ifPresent(evento::setGerente);
+            }
             abrirFormulario(evento);
         });
 
-        // Manejar cambios en el rango de fechas visible
+        // Date range change handler
         calendar.addDatesRenderedListener(event -> {
             startDate = event.getStart().atStartOfDay();
             endDate = event.getEnd().atStartOfDay();
             cargarEventos();
         });
 
-        // Manejar eventos de arrastrar y soltar
-        calendar.addEntryDroppedListener(event -> {
-            Entry entry = event.getEntry();
-            updateEventFromEntry(entry);
-        });
-
-        // Manejar redimensionamiento de eventos
-        calendar.addEntryResizedListener(event -> {
-            Entry entry = event.getEntry();
-            updateEventFromEntry(entry);
-        });
+        // Drag-and-drop and resize handlers
+        calendar.addEntryDroppedListener(event -> updateEventFromEntry(event.getEntry()));
+        calendar.addEntryResizedListener(event -> updateEventFromEntry(event.getEntry()));
     }
 
     private void configureToolbar() {
-        Button refreshButton = new Button("Actualizar", e -> {
+        Button refreshButton = new Button("Actualizar", new Icon(VaadinIcon.REFRESH), e -> {
             cargarEventos();
             Notification.show("Calendario actualizado", 2000, Notification.Position.BOTTOM_CENTER);
         });
 
-        Button newEventButton = new Button("Nuevo Evento", e -> {
+        Button newEventButton = new Button("Nuevo Evento", new Icon(VaadinIcon.PLUS), e -> {
             LocalDateTime now = LocalDateTime.now();
             Evento evento = new Evento();
             evento.setTitulo("");
             evento.setFechaInicio(now);
             evento.setFechaFin(now.plusHours(1));
             evento.setEstado(EventoEstado.PENDIENTE);
+            if (!securityUtils.isAdmin()) {
+                securityUtils.getCurrentGerente().ifPresent(evento::setGerente);
+            }
             abrirFormulario(evento);
         });
-
         newEventButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Select<CalendarViewImpl> viewSelect = new Select<>();
         viewSelect.setItems(CalendarViewImpl.DAY_GRID_MONTH, CalendarViewImpl.TIME_GRID_WEEK, CalendarViewImpl.TIME_GRID_DAY);
-        viewSelect.setItemLabelGenerator(view -> {
-            return switch (view) {
-                case DAY_GRID_MONTH -> "Mes";
-                case TIME_GRID_WEEK -> "Semana";
-                case TIME_GRID_DAY -> "Día";
-                default -> view.getClientSideValue();
-            };
+        viewSelect.setItemLabelGenerator(view -> switch (view) {
+            case DAY_GRID_MONTH -> "Mes";
+            case TIME_GRID_WEEK -> "Semana";
+            case TIME_GRID_DAY -> "Día";
+            default -> view.getClientSideValue();
         });
         viewSelect.setValue(CalendarViewImpl.DAY_GRID_MONTH);
         viewSelect.addValueChangeListener(e -> calendar.changeView(e.getValue()));
@@ -196,10 +221,14 @@ public class EventosView extends VerticalLayout {
         toolbar.setPadding(true);
         toolbar.setDefaultVerticalComponentAlignment(Alignment.CENTER);
         toolbar.setWidthFull();
+        toolbar.addClassName("calendar-toolbar");
     }
 
     private void cargarEventos() {
         entries.clear();
+
+        // Show loading indicator
+        calendar.getElement().executeJs("this.setOption('loading', true);");
 
         List<Evento> eventos;
         try {
@@ -208,11 +237,10 @@ public class EventosView extends VerticalLayout {
             } else {
                 Optional<Gerente> gerenteOpt = securityUtils.getCurrentGerente();
                 if (gerenteOpt.isPresent()) {
-                    Gerente gerente = gerenteOpt.get();
-                    eventos = eventoService.listarEventosPorGerenteYRangoFechas(gerente, startDate, endDate);
+                    eventos = eventoService.listarEventosPorGerenteYRangoFechas(gerenteOpt.get(), startDate, endDate);
                 } else {
-                    // No mostrar notificación aquí, ya que puede no haber UI disponible
-                    // En su lugar, simplemente no cargar eventos
+                    Notification.show("No se encontró gerente asociado", 3000, Notification.Position.MIDDLE)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
                     return;
                 }
             }
@@ -223,15 +251,13 @@ public class EventosView extends VerticalLayout {
                 }
             });
 
-            // Actualizar el calendario (forzar recarga manual)
-            calendar.gotoDate(startDate.toLocalDate()); // Forzar actualización
-
+            highlightUpcomingNotifications();
+            Notification.show("Calendario actualizado", 2000, Notification.Position.BOTTOM_CENTER);
         } catch (Exception e) {
-            // Mostrar notificación solo si hay una UI disponible
-            if (getUI().isPresent()) {
-                Notification.show("Error al cargar eventos: " + e.getMessage(), 3000, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
+            Notification.show("Error al cargar eventos: " + e.getMessage(), 3000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        } finally {
+            calendar.getElement().executeJs("this.setOption('loading', false);");
         }
     }
 
@@ -244,6 +270,16 @@ public class EventosView extends VerticalLayout {
         entry.setAllDay(Duration.between(evento.getFechaInicio(), evento.getFechaFin()).toHours() >= 23);
         entry.setColor(getColorForEstado(evento.getEstado()));
         entry.setCustomProperty("eventoId", evento.getId());
+        // Add notification indicator
+        if (evento.isNotificar() && evento.getTiempoNotificacion() != null) {
+            entry.setTitle(evento.getTitulo() + " 🔔"); // Bell icon for notification
+            entry.setCustomProperty("notificar", true);
+            entry.setCustomProperty("tiempoNotificacion", evento.getTiempoNotificacion());
+        }
+        // Add more details for tooltip
+        entry.setCustomProperty("ubicacion", evento.getUbicacion());
+        entry.setCustomProperty("estado", evento.getEstado().toString());
+        entry.setCustomProperty("gerente", evento.getGerente() != null ? evento.getGerente().getNombre() : "N/A");
         return entry;
     }
 
@@ -335,11 +371,24 @@ public class EventosView extends VerticalLayout {
         dialog.open();
     }
 
+    private void highlightUpcomingNotifications() {
+        LocalDateTime now = LocalDateTime.now();
+        entries.forEach(entry -> {
+            Long eventoId = entry.getCustomProperty("eventoId");
+            if (eventoId != null) {
+                eventoService.buscarPorId(eventoId).ifPresent(evento -> {
+                    if (evento.debeNotificarAhora(now.plusMinutes(60))) { // Within next hour
+                        entry.setBorderColor("#FFD700"); // Gold border for upcoming notifications
+                    }
+                });
+            }
+        });
+    }
+
     /**
      * Clase interna para el formulario de edición de eventos.
      */
     private class EventoFormDialog extends Dialog {
-
         public EventoFormDialog(Evento evento, java.util.function.Consumer<Evento> saveCallback) {
             setWidth("500px");
             setHeaderTitle(evento.getId() == null ? "Nuevo Evento" : "Editar Evento");
@@ -380,7 +429,7 @@ public class EventosView extends VerticalLayout {
 
             ComboBox<EventoEstado> estadoField = new ComboBox<>("Estado");
             estadoField.setItems(EventoEstado.values());
-            estadoField.setItemLabelGenerator(EventoEstado::getDescripcion);
+            estadoField.setItemLabelGenerator(EventoEstado::name); // Assuming EventoEstado has a name() method
             estadoField.setValue(evento.getEstado() != null ? evento.getEstado() : EventoEstado.PENDIENTE);
             estadoField.setWidthFull();
 
@@ -396,29 +445,47 @@ public class EventosView extends VerticalLayout {
 
             notificarField.addValueChangeListener(e -> tiempoNotificacionField.setVisible(e.getValue()));
 
+            // Add color picker
+            TextField colorField = new TextField("Color (hex)");
+            colorField.setValue(evento.getColor() != null ? evento.getColor() : "#3788d8");
+            colorField.setWidthFull();
+            colorField.setPattern("^#[0-9A-Fa-f]{6}$");
+            colorField.setErrorMessage("Ingrese un color en formato hexadecimal (#RRGGBB)");
+            colorField.setClearButtonVisible(true);
+
             ComboBox<Gerente> gerenteField = new ComboBox<>("Gerente");
             if (securityUtils.isAdmin()) {
-                // Los administradores pueden asignar eventos a cualquier gerente
                 gerenteField.setItems(gerenteService.listarGerentes());
                 gerenteField.setItemLabelGenerator(Gerente::getNombreCompleto);
                 gerenteField.setValue(evento.getGerente());
                 gerenteField.setWidthFull();
+                gerenteField.setRequired(true);
             } else {
-                // Los gerentes solo pueden crear eventos para sí mismos
-                Optional<Gerente> gerenteOpt = securityUtils.getCurrentGerente();
-                if (gerenteOpt.isPresent()) {
-                    Gerente gerente = gerenteOpt.get();
+                securityUtils.getCurrentGerente().ifPresent(gerente -> {
                     gerenteField.setItems(gerente);
                     gerenteField.setItemLabelGenerator(Gerente::getNombreCompleto);
                     gerenteField.setValue(gerente);
                     gerenteField.setReadOnly(true);
                     gerenteField.setWidthFull();
-                }
+                });
             }
+
+            // Notification preview
+            Span notificacionPreview = new Span();
+            notificacionPreview.setVisible(notificarField.getValue());
+            updateNotificacionPreview(notificacionPreview, fechaInicioField.getValue(), tiempoNotificacionField.getValue());
+
+            fechaInicioField.addValueChangeListener(e -> updateNotificacionPreview(notificacionPreview, e.getValue(), tiempoNotificacionField.getValue()));
+            tiempoNotificacionField.addValueChangeListener(e -> updateNotificacionPreview(notificacionPreview, fechaInicioField.getValue(), e.getValue()));
+            notificarField.addValueChangeListener(e -> {
+                notificacionPreview.setVisible(e.getValue());
+                updateNotificacionPreview(notificacionPreview, fechaInicioField.getValue(), tiempoNotificacionField.getValue());
+            });
 
             formLayout.add(
                     tituloField, descripcionField, fechaInicioField, fechaFinField,
-                    ubicacionField, estadoField, notificarField, tiempoNotificacionField, gerenteField
+                    ubicacionField, estadoField, notificarField, tiempoNotificacionField,
+                    notificacionPreview, colorField, gerenteField
             );
 
             Div content = new Div(formLayout);
@@ -442,15 +509,18 @@ public class EventosView extends VerticalLayout {
                             .addThemeVariants(NotificationVariant.LUMO_ERROR);
                     return;
                 }
-
                 if (fechaInicioField.isEmpty() || fechaFinField.isEmpty()) {
                     Notification.show("Las fechas son obligatorias", 3000, Notification.Position.MIDDLE)
                             .addThemeVariants(NotificationVariant.LUMO_ERROR);
                     return;
                 }
-
                 if (fechaFinField.getValue().isBefore(fechaInicioField.getValue())) {
                     Notification.show("La fecha de fin debe ser posterior a la fecha de inicio", 3000, Notification.Position.MIDDLE)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    return;
+                }
+                if (gerenteField.isEmpty()) {
+                    Notification.show("El gerente es obligatorio", 3000, Notification.Position.MIDDLE)
                             .addThemeVariants(NotificationVariant.LUMO_ERROR);
                     return;
                 }
@@ -462,19 +532,13 @@ public class EventosView extends VerticalLayout {
                 evento.setUbicacion(ubicacionField.getValue());
                 evento.setEstado(estadoField.getValue());
                 evento.setNotificar(notificarField.getValue());
-
-                // Convertir el valor Double de tiempoNotificacionField a Integer para el evento
-                Integer tiempoNotificacion = notificarField.getValue() ?
-                        (tiempoNotificacionField.getValue() != null ?
-                                tiempoNotificacionField.getValue().intValue() : 15) : null;
-                evento.setTiempoNotificacion(tiempoNotificacion);
-
+                evento.setTiempoNotificacion(notificarField.getValue() ?
+                        (tiempoNotificacionField.getValue() != null ? tiempoNotificacionField.getValue().intValue() : 15) : null);
+                evento.setColor(colorField.getValue());
                 evento.setGerente(gerenteField.getValue());
 
                 close();
-                if (saveCallback != null) {
-                    saveCallback.accept(evento);
-                }
+                saveCallback.accept(evento);
             });
             saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -483,13 +547,8 @@ public class EventosView extends VerticalLayout {
                             Objects.equals(evento.getGerente().getId(), securityUtils.getCurrentGerente().get().getId()));
 
             if (canEdit) {
-                // Solo mostramos el botón de guardar si:
-                // - Es un evento nuevo
-                // - El usuario es admin
-                // - El evento pertenece al gerente actual
                 getFooter().add(cancelButton, deleteButton, saveButton);
             } else {
-                // Modo solo lectura
                 tituloField.setReadOnly(true);
                 descripcionField.setReadOnly(true);
                 fechaInicioField.setReadOnly(true);
@@ -498,9 +557,19 @@ public class EventosView extends VerticalLayout {
                 estadoField.setReadOnly(true);
                 notificarField.setReadOnly(true);
                 tiempoNotificacionField.setReadOnly(true);
+                colorField.setReadOnly(true);
                 gerenteField.setReadOnly(true);
-
                 getFooter().add(new Button("Cerrar", e -> close()));
+            }
+        }
+
+        private void updateNotificacionPreview(Span preview, LocalDateTime fechaInicio, Double tiempoNotificacion) {
+            if (fechaInicio != null && tiempoNotificacion != null) {
+                LocalDateTime notificationTime = fechaInicio.minusMinutes(tiempoNotificacion.longValue());
+                preview.setText("Notificación se enviará el: " +
+                        notificationTime.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+            } else {
+                preview.setText("Seleccione fecha de inicio y tiempo de notificación");
             }
         }
     }

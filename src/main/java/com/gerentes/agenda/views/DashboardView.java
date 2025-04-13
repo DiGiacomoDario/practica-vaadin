@@ -98,39 +98,39 @@ public class DashboardView extends VerticalLayout {
 
     private void createGerenteDashboard() {
         Optional<Gerente> gerenteActual = securityUtils.getCurrentGerente();
-        
+
         if (gerenteActual.isPresent()) {
             Gerente gerente = gerenteActual.get();
-            
+
             // Tarjetas de resumen para gerentes
             HorizontalLayout summaryCards = new HorizontalLayout();
             summaryCards.setWidthFull();
             summaryCards.setPadding(true);
             summaryCards.setSpacing(true);
-            
+
             // Eventos próximos (7 días)
             long eventosProximos = eventoService.contarEventosProximosDias(gerente, 7);
             summaryCards.add(createSummaryCard("Próximos 7 días", String.valueOf(eventosProximos), VaadinIcon.CALENDAR_CLOCK, "var(--lumo-primary-color)"));
-            
+
             // Total eventos este mes
             long eventosMes = eventoService.contarEventosMesGerente(gerente);
             summaryCards.add(createSummaryCard("Eventos este mes", String.valueOf(eventosMes), VaadinIcon.CALENDAR, "var(--lumo-success-color)"));
-            
+
             // Fecha y hora actual
             LocalDateTime now = LocalDateTime.now();
             String formattedDate = now.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
-            
+
             Paragraph lastUpdate = new Paragraph("Última actualización: " + formattedDate);
             lastUpdate.addClassNames(LumoUtility.TextAlignment.CENTER, LumoUtility.FontSize.SMALL);
-            
+
             add(summaryCards, lastUpdate);
-            
+
             // Mensaje de bienvenida
             H3 welcomeTitle = new H3("Bienvenido, " + gerente.getNombre());
             welcomeTitle.addClassNames(LumoUtility.Margin.Top.LARGE);
-            
+
             Paragraph welcomeText = new Paragraph("Desde este panel puede gestionar sus eventos y revisar su agenda.");
-            
+
             add(welcomeTitle, welcomeText);
         } else {
             // Caso en que no se encuentre un gerente asociado
@@ -167,4 +167,5 @@ public class DashboardView extends VerticalLayout {
         
         return card;
     }
+
 }
