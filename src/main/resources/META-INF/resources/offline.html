@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda de Gerentes - Sin conexión</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .offline-container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-top: 40px;
+        }
+        h1 {
+            color: #007BFF;
+            margin-bottom: 20px;
+        }
+        p {
+            margin-bottom: 20px;
+        }
+        .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 16px;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <h1>Agenda de Gerentes</h1>
+        <div class="icon">🔌</div>
+        <h2>Sin conexión</h2>
+        <p>No se puede acceder al servidor en este momento. Por favor, verifica tu conexión a internet e inténtalo de nuevo.</p>
+        <p>Si el problema persiste, contacta con el administrador del sistema.</p>
+        <a href="/" class="btn" id="reload-button">Intentar conectar de nuevo</a>
+    </div>
+    
+    <script>
+        // Verificación periódica de la conexión
+        let checkNetworkInterval = setInterval(function() {
+            if (navigator.onLine) {
+                clearInterval(checkNetworkInterval);
+                
+                // Intentar verificar la conexión con el servidor antes de recargar
+                fetch('/', { 
+                    method: 'HEAD',
+                    cache: 'no-store'
+                }).then(function() {
+                    window.location.reload();
+                }).catch(function(error) {
+                    console.log('Servidor no disponible:', error);
+                });
+            }
+        }, 5000); // Verificar cada 5 segundos
+        
+        // Agregar evento al botón
+        document.getElementById('reload-button').addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.reload();
+        });
+        
+        // También recargar cuando el navegador detecta que la conexión está disponible nuevamente
+        window.addEventListener('online', function() {
+            window.location.reload();
+        });
+    </script>
+</body>
+</html>
