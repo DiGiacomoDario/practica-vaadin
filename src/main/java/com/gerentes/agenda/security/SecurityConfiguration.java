@@ -10,7 +10,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-
 import com.gerentes.agenda.views.LoginView;
 import com.vaadin.flow.spring.security.VaadinWebSecurity;
 
@@ -37,38 +36,16 @@ public class SecurityConfiguration extends VaadinWebSecurity {
         http.authorizeHttpRequests(auth -> {
             // Recursos públicos
             auth.requestMatchers(
-                    // Recursos de Vaadin
+                    new AntPathRequestMatcher("/login"),
+                    new AntPathRequestMatcher("/error"), // Allow /error
+                    new AntPathRequestMatcher("/h2-console/**"),
                     new AntPathRequestMatcher("/VAADIN/**"),
-                    new AntPathRequestMatcher("/vaadinServlet/**"),
-                    new AntPathRequestMatcher("/PUSH/**"),
-                    new AntPathRequestMatcher("/UIDL/**"),
-                    new AntPathRequestMatcher("/HEARTBEAT/**"),
-                    new AntPathRequestMatcher("/VAADIN/push/**"),
-                    
-                    // Recursos estáticos
-                    new AntPathRequestMatcher("/favicon.ico"),
-                    new AntPathRequestMatcher("/robots.txt"),
                     new AntPathRequestMatcher("/frontend/**"),
-                    new AntPathRequestMatcher("/frontend-es6/**"),
-                    new AntPathRequestMatcher("/frontend-es5/**"),
                     new AntPathRequestMatcher("/styles/**"),
                     new AntPathRequestMatcher("/icons/**"),
                     new AntPathRequestMatcher("/images/**"),
-                    
-                    // Base de datos
-                    new AntPathRequestMatcher("/h2-console/**"),
-                    
-                    // PWA
-                    new AntPathRequestMatcher("/manifest.webmanifest"),
-                    new AntPathRequestMatcher("/sw.js"),
-                    new AntPathRequestMatcher("/sw-runtime-resources-precache.js"),
                     new AntPathRequestMatcher("/offline.html"),
-                    new AntPathRequestMatcher("/offline-stub.html"),
-                    
-                    // Autenticación y errores
-                    new AntPathRequestMatcher("/login"),
-                    new AntPathRequestMatcher("/login/**"),
-                    new AntPathRequestMatcher("/error/**")
+                    new AntPathRequestMatcher("/offline-stub.html")
             ).permitAll();
 
             // Páginas protegidas
@@ -79,10 +56,9 @@ public class SecurityConfiguration extends VaadinWebSecurity {
             auth.anyRequest().authenticated();
         });
 
-        // Deshabilitar CSRF para Vaadin push y consola H2
+        // Deshabilitar CSRF solo para Vaadin y H2 console
         http.csrf(csrf -> csrf.ignoringRequestMatchers(
                 new AntPathRequestMatcher("/VAADIN/**"),
-                new AntPathRequestMatcher("/VAADIN/push/**"),
                 new AntPathRequestMatcher("/h2-console/**")
         ));
 
@@ -94,7 +70,7 @@ public class SecurityConfiguration extends VaadinWebSecurity {
                 .loginPage("/login")
                 .permitAll()
                 .defaultSuccessUrl("/dashboard", true)
-                .failureUrl("/login?error")
+                .failureUrl("/login?error=true")
         );
 
         // Usar la vista de login de Vaadin

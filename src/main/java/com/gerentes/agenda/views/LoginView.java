@@ -1,8 +1,6 @@
 package com.gerentes.agenda.views;
 
-import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.H1;
-import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.login.LoginForm;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -19,52 +17,47 @@ import org.slf4j.LoggerFactory;
 @Route("login")
 @PageTitle("Login | Agenda de Gerentes")
 @AnonymousAllowed
-//@CssImport("./styles/shared-styles.css")
 public class LoginView extends VerticalLayout implements BeforeEnterObserver {
 
     private static final Logger logger = LoggerFactory.getLogger(LoginView.class);
     private final LoginForm login = new LoginForm();
 
     public LoginView() {
-        logger.info("Initializing LoginView");
-        addClassName("login-view");
-        setSizeFull();
-        setAlignItems(Alignment.CENTER);
-        setJustifyContentMode(JustifyContentMode.CENTER);
+        try {
+            logger.info("Initializing LoginView");
+            addClassName("login-view");
+            setSizeFull();
+            setAlignItems(Alignment.CENTER);
+            setJustifyContentMode(JustifyContentMode.CENTER);
 
-        // Configure login form
-        login.setAction("login");
-        login.setForgotPasswordButtonVisible(false);
-        login.setI18n(createSpanishI18n());
+            // Configure login form
+            login.setAction("login");
+            login.setForgotPasswordButtonVisible(false);
+            login.setI18n(createSpanishI18n());
 
-        // Add error listener for debugging
-        login.addLoginListener(event -> {
-            logger.info("Login attempted for username: {}", event.getUsername());
-            if (login.isError()) {
-                logger.warn("Login error detected");
-                Notification.show("Error al iniciar sesión. Verifique sus credenciales.", 3000, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
-        });
+            // Log login attempts
+            login.addLoginListener(event -> {
+                logger.info("Login attempted for username: {}", event.getUsername());
+            });
 
-        // Title
-        H1 title = new H1("Agenda de Gerentes");
-        title.addClassNames(
-                LumoUtility.Margin.NONE,
-                LumoUtility.FontSize.XXLARGE,
-                LumoUtility.FontWeight.BOLD,
-                LumoUtility.TextColor.HEADER
-        );
+            // Title
+            H1 title = new H1("Agenda de Gerentes");
+            title.addClassNames(
+                    LumoUtility.Margin.NONE,
+                    LumoUtility.FontSize.XXLARGE,
+                    LumoUtility.FontWeight.BOLD,
+                    LumoUtility.TextColor.HEADER
+            );
 
-        // Optional logo (uncomment if you have an image)
-        // Image logo = new Image("images/logo.png", "Logo Agenda de Gerentes");
-        // logo.setWidth("150px");
-        // logo.addClassNames(LumoUtility.Margin.Bottom.MEDIUM);
+            // Add components
+            add(title, login);
 
-        // Add components
-        add(/*logo,*/ title, login);
-
-        logger.info("LoginView components added");
+            logger.info("LoginView components added");
+        } catch (Exception e) {
+            logger.error("Error initializing LoginView", e);
+            Notification.show("Error al cargar la página de inicio de sesión", 3000, Notification.Position.TOP_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
     }
 
     @Override
