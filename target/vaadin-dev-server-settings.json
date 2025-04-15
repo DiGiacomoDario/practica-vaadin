@@ -1,0 +1,17 @@
+{
+  "frontendFolder": "C:/Users/Coshita/IdeaProjects/practica-vaadin/./frontend",
+  "themeFolder": "themes",
+  "themeResourceFolder": "C:/Users/Coshita/IdeaProjects/practica-vaadin/./frontend/generated/jar-resources",
+  "staticOutput": "C:/Users/Coshita/IdeaProjects/practica-vaadin/target/classes/META-INF/VAADIN/webapp/VAADIN/static",
+  "generatedFolder": "generated",
+  "statsOutput": "C:\\Users\\Coshita\\IdeaProjects\\practica-vaadin\\target\\classes\\META-INF\\VAADIN\\config",
+  "frontendBundleOutput": "C:\\Users\\Coshita\\IdeaProjects\\practica-vaadin\\target\\classes\\META-INF\\VAADIN\\webapp",
+  "devBundleOutput": "C:/Users/Coshita/IdeaProjects/practica-vaadin/target/dev-bundle/webapp",
+  "devBundleStatsOutput": "C:/Users/Coshita/IdeaProjects/practica-vaadin/target/dev-bundle/config",
+  "jarResourcesFolder": "C:/Users/Coshita/IdeaProjects/practica-vaadin/./frontend/generated/jar-resources",
+  "themeName": "",
+  "clientServiceWorkerSource": "C:\\Users\\Coshita\\IdeaProjects\\practica-vaadin\\target\\sw.ts",
+  "pwaEnabled": false,
+  "offlineEnabled": false,
+  "offlinePath": "'offline.html'"
+}
